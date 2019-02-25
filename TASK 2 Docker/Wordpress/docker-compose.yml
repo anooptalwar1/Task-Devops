@@ -1,0 +1,76 @@
+version: '3'
+services:
+  mysql:
+    build:
+      context: db_data
+      args:
+        - MYSQL_DATABASE=${MYSQL_DATABASE}
+        - MYSQL_USER=${MYSQL_USER}
+        - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+        - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "${MYSQL_PORT}:3306"
+    volumes:
+      - "$PWD/db_data:/var/lib/mysql"
+    networks:
+      - net
+  wordpress:
+    depends_on:
+      - db
+    image: wordpress:latest
+    container_name: wordpress
+    build:
+      dockerfile: Dockerfile
+      context: ./
+    ports:
+      - 10127:80 
+      - 443:443
+    restart: unless-stopped  
+    volumes:
+      - ./workspace/:/var/www/html/workspace 
+    environment:
+      WORDPRESS_DB_HOST: db:10126
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: wordpress
+    networks:
+      - net
+  phpmyadmin:
+    depends_on:
+      - db
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: unless-stopped
+    ports:
+      - 8080:80
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: wordpress
+    networks:
+      - net
+  php-fpm:
+    build:
+      context: ./php-fpm
+      args:
+        - INSTALL_XDEBUG=${PHP_FPM_INSTALL_XDEBUG}
+        - INSTALL_IMAGE_OPTIMIZERS=${PHP_FPM_INSTALL_IMAGE_OPTIMIZERS}
+        - INSTALL_IMAGEMAGICK=${PHP_FPM_INSTALL_IMAGEMAGICK}
+      dockerfile: "Dockerfile-${PHP_VERSION}"
+    volumes:
+      - docker-sync:${DESTINATION_PATH}:nocopy 
+      - ./php-fpm/php${PHP_VERSION}.ini:/usr/local/etc/php/php.ini
+    expose:
+      - "9000"
+    ports:
+      - "22"
+    depends_on:
+      - workspace
+    extra_hosts:
+      - "dockerhost:${DOCKER_HOST_IP}"
+    environment:
+      - PHP_IDE_CONFIG=${PHP_IDE_CONFIG}
+    networks:
+     - net
+volumes:
+  db:
+networks:
+  net:

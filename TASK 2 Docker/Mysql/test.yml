@@ -1,0 +1,33 @@
+version: '3.3'
+services:
+  jenkins:
+    container_name: jenkins
+    image: jenkins/jenkins
+    ports:
+      - '10125:8080'
+      - '9443:8443'
+      - '50000:50000'
+    privileged: True
+    volumes:
+      - '$PWD/jenkins_home:/jenkins_config'
+    networks:
+      - net
+  mysql:
+    build:
+      context: db_data
+      args:
+        - MYSQL_DATABASE=${MYSQL_DATABASE}
+        - MYSQL_USER=${MYSQL_USER}
+        - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+        - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "${MYSQL_PORT}:3306"
+    volumes:
+      - "$PWD/db_data:/var/lib/mysql"
+    networks:
+      - net
+volumes:
+  jenkins_home:
+    driver: local
+networks:
+  net:
