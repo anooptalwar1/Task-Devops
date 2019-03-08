@@ -1,0 +1,81 @@
+import os
+import time
+from os import listdir
+from os.path import isfile, join
+import datetime
+import pysftp
+import shutil
+from subprocess import Popen
+
+mylist = []
+today = datetime.date.today()
+
+ip = '172.17.104.29'
+port = 22
+username = 'root'
+password = 'sonora'
+
+
+
+print ("Initiating --- PROFORMA LOADING")
+print ("==============================")
+print (time.strftime("%Y-%m-%d %H:%M"))
+print ()
+print ()
+
+onlyfiles = [f for f in listdir("C:\\xampp\htdocs\Shiraj\REQUESTED") if
+             isfile(join("C:\\xampp\htdocs\Shiraj\REQUESTED", f))]
+print ("Files at Path : 'C:\\xampp\htdocs\Shiraj\REQUESTED' ")
+
+print ("===============================")
+print ()
+print ()
+print ()
+print ("Uploading Files to BillApp1")
+
+if len(onlyfiles) > 0 :
+for i in range(len(onlyfiles)):
+    cnopts = pysftp.CnOpts()
+    cnopts.hostkeys = None
+    srv = pysftp.Connection(host="172.17.104.29",username="root",password="sonora",cnopts=cnopts)
+    with srv.cd('/staging/billing/scripts/OCB/Files'):
+        srv.put("C:\\xampp\\htdocs\\Shiraj\\REQUESTED\\"+onlyfiles[i])
+    srv.close()
+print ("No. of Files Uploaded :  "+str(len(onlyfiles)))
+print ()
+print ()
+print ()
+print ("Shifting Files to COMPLETED Directory")
+path = "C:\\xampp\\htdocs\\Shiraj\\REQUESTED\\"
+moveto = "C:\\xampp\\htdocs\\Shiraj\\COMPLETED\\"
+files = os.listdir(path)
+files.sort()
+for f in files:
+        src = path + f
+        dst = moveto + f
+        
+        ctl = """options(skip=1)
+load data
+infile 'C:\\xampp\htdocs\ocbvmanu\PROFORMA\REQUEST\{}'
+into table OCB_BATCH_PROFORMAS
+FIELDS TERMINATED BY ','
+optionally enclosed by '"'
+trailing nullcols
+(EXTERNAL_ID
+)""".format(f)
+        
+        c = open("sql.ctl", "w")
+        c.write(ctl)
+        c.close()
+
+        ldr = """@echo off
+sqlldr 'cbs_owner/comverse@cust1' control='sql.ctl' log='Results.log'
+pause"""
+
+        c = open("ldr.bat", "w")
+        c.write(ldr)
+        c.close()
+        
+        p = Popen("ldr.bat", cwd=r"C:\\xampp\htdocs\Shiraj")
+        stdout, stderr = p.communicate()
+        shutil.move(src, dst)
